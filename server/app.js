@@ -88,12 +88,11 @@ async function createApp() {
     const username = String(request.body.username || "");
     const password = String(request.body.password || "");
 
-    const query = `
-      SELECT id, username, role, display_name
-      FROM users
-      WHERE username = '${username}' AND password = '${password}'
-    `;
-    const user = await db.get(query);
+    const user = await db.get(
+      `SELECT id, username, role, display_name
+      FROM users WHERE username = ? AND password = ?`,
+      [username, password]
+    );
 
     if (!user) {
       response.status(401).json({ error: "Invalid username or password." });
@@ -136,21 +135,16 @@ async function createApp() {
     const ownerId = request.query.ownerId || request.currentUser.id;
     const search = request.query.search || "";
 
-    const notes = await db.all(`
-      SELECT
-        notes.id,
-        notes.owner_id AS ownerId,
-        users.username AS ownerUsername,
-        notes.title,
-        notes.body,
-        notes.pinned,
-        notes.created_at AS createdAt
+    const notes = await db.all(
+      `SELECT notes.id, notes.owner_id AS ownerId, users.username AS ownerUsername,
+      notes.title, notes.body, notes.pinned, notes.created_at AS createdAt
       FROM notes
       JOIN users ON users.id = notes.owner_id
-      WHERE notes.owner_id = ${ownerId}
-        AND (notes.title LIKE '%${search}%' OR notes.body LIKE '%${search}%')
-      ORDER BY notes.pinned DESC, notes.id DESC
-    `);
+      WHERE notes.owner_id = ?
+      AND (notes.title LIKE ? OR notes.body LIKE ?)
+      ORDER BY notes.pinned DESC, notes.id DESC`,
+      [ownerId, `%${search}%`, `%${search}%`]
+    );
 
     response.json({ notes });
   });
